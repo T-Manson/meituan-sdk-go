@@ -17,7 +17,7 @@ go get github.com/T-Manson/meituan-sdk-go/meituan
 
 ## Import
 ``` golang
-import github.com/T-Manson/meituan-sdk-go/meituan
+import “github.com/T-Manson/meituan-sdk-go/meituan“
 ```
 Finish.
 
