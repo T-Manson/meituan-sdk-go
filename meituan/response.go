@@ -9,79 +9,81 @@ import (
 	"strings"
 )
 
-// BaseMeiTuanResponse
-type BaseMeiTuanResponse interface {
+// BaseResponse 基础响应
+type BaseResponse interface {
+	// 转Json字符串
 	Json() string
+	// 解析为struct
 	Parse(jsonBytes []byte) error
 }
 
-// MeiTuanResponse
-type MeiTuanResponse struct {
-	Data  string        `json:"data"`
-	Error *MeiTuanError `json:"error,omitempty"`
+// Response 单值响应
+type Response struct {
+	Data  string `json:"data"`
+	Error *Error `json:"error,omitempty"`
 }
 
-// MeiTuanMapResponse
-type MeiTuanMapResponse struct {
+func (self *Response) Json() string {
+	jsonBytes, _ := json.Marshal(self)
+	return string(jsonBytes)
+}
+
+func (self *Response) Parse(jsonBytes []byte) error {
+	return json.Unmarshal(jsonBytes, self)
+}
+
+// MapResponse 字典响应
+type MapResponse struct {
 	Data  map[string]interface{} `json:"data"`
-	Error *MeiTuanError          `json:"error,omitempty"`
+	Error *Error                 `json:"error,omitempty"`
 }
 
-// MeiTuanListMapResponse
-type MeiTuanListMapResponse struct {
+func (self *MapResponse) Json() string {
+	jsonBytes, _ := json.Marshal(self)
+	return string(jsonBytes)
+}
+
+func (self *MapResponse) Parse(jsonBytes []byte) error {
+	return json.Unmarshal(jsonBytes, self)
+}
+
+// ListMapResponse 字典集合响应
+type ListMapResponse struct {
 	Data  []map[string]interface{} `json:"data"`
-	Error *MeiTuanError            `json:"error,omitempty"`
+	Error *Error                   `json:"error,omitempty"`
 }
 
-// MeiTuanError
-type MeiTuanError struct {
+func (self *ListMapResponse) Json() string {
+	jsonBytes, _ := json.Marshal(self)
+	return string(jsonBytes)
+}
+
+func (self *ListMapResponse) Parse(jsonBytes []byte) error {
+	return json.Unmarshal(jsonBytes, self)
+}
+
+// Error 错误
+type Error struct {
 	Msg  string `json:"msg"`
 	Code int    `json:"code"`
 }
 
-func (self *MeiTuanResponse) Json() string {
-	jsonBytes, _ := json.Marshal(self)
-	return string(jsonBytes)
-}
-
-func (self *MeiTuanResponse) Parse(jsonBytes []byte) error {
-	return json.Unmarshal(jsonBytes, self)
-}
-
-func (self *MeiTuanMapResponse) Json() string {
-	jsonBytes, _ := json.Marshal(self)
-	return string(jsonBytes)
-}
-
-func (self *MeiTuanMapResponse) Parse(jsonBytes []byte) error {
-	return json.Unmarshal(jsonBytes, self)
-}
-
-func (self *MeiTuanListMapResponse) Json() string {
-	jsonBytes, _ := json.Marshal(self)
-	return string(jsonBytes)
-}
-
-func (self *MeiTuanListMapResponse) Parse(jsonBytes []byte) error {
-	return json.Unmarshal(jsonBytes, self)
-}
-
-// GetSuccessResponse returns string
-func GetSuccessResponse() string {
-	response := &MeiTuanResponse{Data: "ok"}
+// SuccessResponse 成功响应
+func SuccessResponse() string {
+	response := &Response{Data: "ok"}
 	return response.Json()
 }
 
-// GetErrorResponse returns string
-func GetErrorResponse(code int, errorMsg string) string {
-	response := &MeiTuanResponse{Data: errorMsg, Error: &MeiTuanError{Code: code, Msg: errorMsg}}
+// ErrorResponse 异常响应
+func ErrorResponse(code int, errorMsg string) string {
+	response := &Response{Data: "ng", Error: &Error{Code: code, Msg: errorMsg}}
 	return response.Json()
 }
 
-// GetMeiTuanResponse
+// ParseResponse 解析为指定的响应struct
 //
 // if has error, returns error else nil
-func GetMeiTuanResponse(resp *http.Response, outResponse BaseMeiTuanResponse) error {
+func ParseResponse(resp *http.Response, outResp BaseResponse) error {
 	var (
 		result []byte
 		err    error
@@ -91,36 +93,37 @@ func GetMeiTuanResponse(resp *http.Response, outResponse BaseMeiTuanResponse) er
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusOK {
-			if result, err = checkMeiTuanResponseBody(resp.Body); err != nil {
-				fmt.Println("[Error][MeiTuan]GetMeiTuanResponse checkMeiTuanResponseBody ", err.Error())
+			if result, err = checkResponseBody(resp.Body); err != nil {
+				fmt.Println("[Error][]GetResponse checkResponseBody ", err.Error())
 				return err
 			} else {
-				fmt.Println("[Info][MeiTuan]GetMeiTuanResponse Response ", string(result))
-				return outResponse.Parse(result)
+				fmt.Println("[Info][]GetResponse Response ", string(result))
+				return outResp.Parse(result)
 			}
 		} else {
 			result, _ := ioutil.ReadAll(resp.Body)
-			return fmt.Errorf("[Error][MeiTuan]GetMeiTuanResponse code: %v body: %s", resp.StatusCode, string(result))
+			return fmt.Errorf("[Error][]GetResponse code: %v body: %s", resp.StatusCode, string(result))
 		}
 	}
 
-	fmt.Println("[Info][MeiTuan]GetMeiTuanResponse Response is empty")
+	fmt.Println("[Info][]GetResponse Response is empty")
 	return nil
 }
 
-// checkMeiTuanResponseBody returns byte array
+// checkResponseBody 校验响应内容
 //
 // if error != nil, has error or response.data equals ng
-func checkMeiTuanResponseBody(body io.ReadCloser) (result []byte, err error) {
-	meiTuanResponse := &MeiTuanResponse{}
+func checkResponseBody(body io.ReadCloser) (result []byte, err error) {
+	meiTuanResponse := &Response{}
 
 	if result, err = ioutil.ReadAll(body); err != nil {
 		return
 	} else {
 		if err = meiTuanResponse.Parse(result); err == nil {
+			// 美团响应data为ng时，为处理失败
 			if strings.ToLower(meiTuanResponse.Data) == "ng" {
 				result = nil
-				err = fmt.Errorf("[Error][MeiTuan]checkMeiTuanResponseBody response.data equels ng. error:%+v", meiTuanResponse.Error)
+				err = fmt.Errorf("[Error][]checkResponseBody response.data equels ng. error:%+v", meiTuanResponse.Error)
 				return
 			}
 		}

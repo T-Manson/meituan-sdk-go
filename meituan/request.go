@@ -8,13 +8,13 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 )
 
+// 美团POST请求正文类型
 const HTTP_POST_CONTENT_TYPE = "application/x-www-form-urlencoded"
 
-// MeiTuanRequest
-type MeiTuanRequest struct {
+// Request 请求
+type Request struct {
 	HttpMethod string
 	RequestUrl string
 	Timestamp  int64             // 调用接口时的时间戳，即当前时间戳（当前距离Epoch（1970年1月1日) 以秒计算的时间，即unix - timestamp），注意传输时间戳与当前北京时间前后相差不能超过10分钟
@@ -23,66 +23,71 @@ type MeiTuanRequest struct {
 	Data       map[string]string // 应用级参数
 }
 
-// CallRemote
+// CallRemote 远程调用，可返回单值类型、字典类型、字典集合类型响应结果
 //
-// outResponse Has three type can choose.
+// outResp Has three type can choose.
 //
-// type1: MeiTuanResponse.
+// type1: Response.
 //
-// type2: MeiTuanMapResponse instead of func CallMapRemote().
+// type2: MapResponse instead of func CallMapRemote().
 //
-// type3: MeiTuanListMapResponse  instead of func CallListMapRemote().
-func (self *MeiTuanRequest) CallRemote(outResponse BaseMeiTuanResponse) (err error) {
-	var response *http.Response
+// type3: ListMapResponse  instead of func CallListMapRemote().
+func (self *Request) CallRemote(outResp BaseResponse) (err error) {
+	var resp *http.Response
 
-	if response, err = callMeiTuanApi(self); err != nil {
+	if resp, err = callApi(self); err != nil {
 		return
 	}
 
-	err = GetMeiTuanResponse(response, outResponse)
+	err = ParseResponse(resp, outResp)
 	return
 }
 
-func (self *MeiTuanRequest) CallMapRemote() (*MeiTuanMapResponse, error) {
-	meiTuanMapResponse := &MeiTuanMapResponse{}
-	err := self.CallRemote(meiTuanMapResponse)
-	return meiTuanMapResponse, err
+func (self *Request) CallMapRemote() (resp *MapResponse, err error) {
+	resp = &MapResponse{}
+	err = self.CallRemote(resp)
+	return
 }
 
-func (self *MeiTuanRequest) CallListMapRemote() (*MeiTuanListMapResponse, error) {
-	meiTuanListMapResponse := &MeiTuanListMapResponse{}
-	err := self.CallRemote(meiTuanListMapResponse)
-	return meiTuanListMapResponse, err
+func (self *Request) CallListMapRemote() (resp *ListMapResponse, err error) {
+	resp = &ListMapResponse{}
+	err = self.CallRemote(resp)
+	return
 }
 
-// SetData
-func (self *MeiTuanRequest) SetData(data map[string]string) {
-	self.Data = data
+func (self *Request) AddData(key string, value string) {
+	if self.Data == nil {
+		self.Data = make(map[string]string)
+	}
+	self.Data[key] = value
 }
 
-// ParseRequestParams
+// ParseRequestParams 解析美团推送的请求体
 //
 // if error != nil, has error
-func (self *MeiTuanRequest) ParseRequestParams(requestBody string) error {
+func (self *Request) ParseRequestParams(reqBody string) error {
 	var (
 		timestamp, appId, sig string
 		ok                    bool
 		err                   error
 	)
 
-	if requestBody != "" {
+	if reqBody != "" {
 		var values url.Values
-		if values, err = url.ParseQuery(requestBody); err != nil {
+		if values, err = url.ParseQuery(reqBody); err != nil {
 			fmt.Println("[Error]ParseRequestParams ParseQuery ", err.Error())
 			return err
 		}
 
+		// Why decode twice? see: http://developer.waimai.meituan.com/home/guide/6
+		// 第一次解码
 		var unescapeValuesStr1 string
 		if unescapeValuesStr1, err = url.QueryUnescape(values.Encode()); err != nil {
 			fmt.Println("[Error]ParseRequestParams QueryUnescape1 ", err.Error())
 			return err
 		}
 
+		// 第二次解码
 		var unescapeValuesStr2 string
 		if unescapeValuesStr2, err = url.QueryUnescape(unescapeValuesStr1); err != nil {
 			fmt.Println("[Error]ParseRequestParams QueryUnescape2 ", err.Error())
@@ -129,29 +134,29 @@ func (self *MeiTuanRequest) ParseRequestParams(requestBody string) error {
 	return nil
 }
 
-func (self *MeiTuanRequest) CheckPushSign() bool {
-	sign, _, _ := makeSign(self.HttpMethod, self.RequestUrl,
-		self.AppId, self.Timestamp, self.Data)
-	if self.Sig == sign {
-		return true
+func (self *Request) CheckPushSign() bool {
+	if self.Sig == "" {
+		return false
 	}
-	return false
+	sign, _, _ := makeSign(self.RequestUrl, self.AppId,
+		self.Timestamp, self.Data)
+	return self.Sig == sign
 }
 
-func (self *MeiTuanRequest) GetDataValue(key string) interface{} {
-	if self.Data != nil && len(self.Data) > 0 {
+func (self *Request) GetDataValue(key string) string {
+	if self.Data != nil {
 		return self.Data[key]
 	}
-	return nil
+	return ""
 }
 
-func (self *MeiTuanRequest) getFinalRequestUrl() (finalRequestUrl string, applicationParamStr string) {
-	self.Timestamp = time.Now().UnixNano() / int64(time.Millisecond)
+func (self *Request) getFinalRequestUrl() (finalRequestUrl string, applicationParamStr string) {
+	self.Timestamp = MakeTimestamp()
 	self.AppId = commonConfig.appId
 
 	var signValuesStr string
-	self.Sig, signValuesStr, applicationParamStr = makeSign(self.HttpMethod, self.RequestUrl,
-		self.AppId, self.Timestamp, self.Data)
+	self.Sig, signValuesStr, applicationParamStr = makeSign(self.RequestUrl, self.AppId,
+		self.Timestamp, self.Data)
 
 	var finalRequestUrlValuesStr string
 	switch self.HttpMethod {
@@ -164,28 +169,17 @@ func (self *MeiTuanRequest) getFinalRequestUrl() (finalRequestUrl string, applic
 	return
 }
 
-// NewMeiTuanRequest returns *MeiTuanRequest
-func NewMeiTuanRequest(httpMethod, requestUrl string) *MeiTuanRequest {
-	return &MeiTuanRequest{
+// NewRequest 构建请求
+func NewRequest(httpMethod, requestUrl string) *Request {
+	return &Request{
 		HttpMethod: httpMethod,
 		RequestUrl: requestUrl,
+		Data:       make(map[string]string),
 	}
 }
 
-// GetHttpUrlValues returns url.Values
-func GetHttpUrlValues(dataMap map[string]string) (values url.Values) {
-	var strBuilder strings.Builder
-	for k, v := range dataMap {
-		strBuilder.WriteString(fmt.Sprintf("%s=%v&", k, v))
-	}
-	if strBuilder.Len() > 0 {
-		values, _ = url.ParseQuery(strBuilder.String())
-	}
-	return
-}
-
-// callMeiTuanApi
-func callMeiTuanApi(self *MeiTuanRequest) (*http.Response, error) {
+// callApi 调用美团Api
+func callApi(self *Request) (*http.Response, error) {
 	var (
 		response                             *http.Response
 		finalRequestUrl, applicationParamStr string
@@ -194,13 +188,14 @@ func callMeiTuanApi(self *MeiTuanRequest) (*http.Response, error) {
 
 	client := http.Client{}
 
-	fmt.Println("[Info][MeiTuan]callMeiTuanApi requestUrl ", self.RequestUrl)
+	fmt.Println("[Info][]callApi requestUrl ", self.RequestUrl)
 	finalRequestUrl, applicationParamStr = self.getFinalRequestUrl()
-	fmt.Println("[Info][MeiTuan]callMeiTuanApi finalRequestUrl ", finalRequestUrl)
+	fmt.Println("[Info][]callApi finalRequestUrl ", finalRequestUrl)
 
+	// 美团Api请求方式仅有Post、Get两种模式
 	switch self.HttpMethod {
 	case http.MethodPost:
-		fmt.Println("[Info][MeiTuan]callMeiTuanApi POST data: ", applicationParamStr)
+		fmt.Println("[Info][]callApi POST data: ", applicationParamStr)
 		response, err = client.Post(finalRequestUrl, HTTP_POST_CONTENT_TYPE,
 			strings.NewReader(applicationParamStr))
 	default:
@@ -208,14 +203,14 @@ func callMeiTuanApi(self *MeiTuanRequest) (*http.Response, error) {
 	}
 
 	if err != nil {
-		fmt.Println("[Error][MeiTuan]callMeiTuanApi ", self.RequestUrl, err.Error())
+		fmt.Println("[Error][]callApi ", self.RequestUrl, err.Error())
 		return nil, err
 	}
 
 	return response, nil
 }
 
-// makeSign returns string, string, string
+// makeSign 获取美团格式签名，返回：签名、签名使用的字符串、应用参数form格式字符串
 //
 // Sign Rule Exemple: ${proto}://${host}/${route}?app_id=${appId}&${applicationParams}&timestamp=${timestamp}${secret}
 //
@@ -227,41 +222,50 @@ func callMeiTuanApi(self *MeiTuanRequest) (*http.Response, error) {
 //
 // url query: all key name must be asc sort
 //
-// appId: MeiTuan appId
+// appId:  appId
 //
 // applicationParams: request data
 //
 // timestamp: request timestamp
 //
-// secret: MeiTuan secret
-func makeSign(httpMethod, requestUrl,
-	appId string,
-	timestamp int64,
+// secret:  secret
+func makeSign(requestUrl, appId string, timestamp int64,
 	requestData map[string]string) (sign string, signValuesStr string, applicationParamStr string) {
-	if httpMethod == "" || requestUrl == "" || appId == "" || timestamp == 0 {
+	if requestUrl == "" || appId == "" || timestamp == 0 {
 		return "", "", ""
 	}
 
-	signValuesStr, applicationParamStr = getSignValuesStr(httpMethod, requestUrl, appId, timestamp, requestData)
-	fmt.Println("[Info][MeiTuan]makeSign sigValuesStr is: ", signValuesStr)
+	signValuesStr, applicationParamStr = getSignValuesStr(requestUrl, appId, timestamp, requestData)
+	fmt.Println("[Info][]makeSign sigValuesStr is: ", signValuesStr)
 	md5Tool := md5.New()
 	md5Tool.Write([]byte(signValuesStr))
 	md5Bytes := md5Tool.Sum(nil)
 	sign = hex.EncodeToString(md5Bytes)
-	fmt.Println("[Info][MeiTuan]makeSign sign is: ", sign)
+	fmt.Println("[Info][]makeSign sign is: ", sign)
 	return
 }
 
-// getSignValuesStr returns string, string
-func getSignValuesStr(httpMethod, requestUrl,
-	appId string, timestamp int64,
-	requestData map[string]string) (sign string, applicationParamStr string) {
-	values := GetHttpUrlValues(requestData)
+// getSignValuesStr 返回：签名使用的字符串、应用参数form格式字符串
+func getSignValuesStr(requestUrl, appId string, timestamp int64,
+	requestData map[string]string) (signValuesStr string, applicationParamStr string) {
+	values := getHttpUrlValues(requestData)
 	applicationParamStr = values.Encode()
 
 	values.Add("timestamp", strconv.FormatInt(timestamp, 10))
 	values.Add("app_id", appId)
 	valuesStr, _ := url.QueryUnescape(values.Encode())
-	sign = fmt.Sprintf("%s?%s%s", requestUrl, valuesStr, commonConfig.consumerSecret)
+	signValuesStr = fmt.Sprintf("%s?%s%s", requestUrl, valuesStr, commonConfig.consumerSecret)
+	return
+}
+
+// getHttpUrlValues 获取url query格式数据
+func getHttpUrlValues(dataMap map[string]string) (values url.Values) {
+	var strBuilder strings.Builder
+	for k, v := range dataMap {
+		strBuilder.WriteString(fmt.Sprintf("%s=%v&", k, v))
+	}
+	if strBuilder.Len() > 0 {
+		values, _ = url.ParseQuery(strBuilder.String())
+	}
 	return
 }
