@@ -31,6 +31,8 @@ func main() {
 	poiMgetRequest := meituan.NewRequest(http.MethodGet, meituan.GetRequestUrl(poiMget))
 	poiMgetRequest.AddData("app_poi_codes", appPoiCode)
 
+	// 获取结果的2种方式
+	// 通过out参数返回
 	poiMgetResponse := &meituan.ListMapResponse{}
 	if err := poiMgetRequest.CallRemote(poiMgetResponse); err != nil {
 		fmt.Println("[Error][MeiTuan]CallRemote ", poiMget, err.Error())
@@ -38,6 +40,7 @@ func main() {
 		fmt.Println(poiMgetResponse.Json())
 	}
 
+	// 通过return结果返回
 	if reps, err := poiMgetRequest.CallListMapRemote(); err != nil {
 		fmt.Println("[Error][MeiTuan]CallRemote ", poiMget, err.Error())
 	} else {
