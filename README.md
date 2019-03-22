@@ -2,54 +2,24 @@
 美团外卖 SDK FOR GO
 
 # Overview
-降低Go语言接入美团外卖平台的复杂性。考虑到美团业务的发展变化，所以并没有提供独立调用方法。使用者需要根据[美团OpenApi文档](美团OpenApi文档)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+降低Go语言接入美团外卖平台的复杂性。考虑到美团业务的发展变化，所以并没有提供独立调用方法。使用者根据[美团OpenApi文档](#美团openapi文档)选择对应路由规则调用。
 
 # 美团OpenApi文档
-[餐饮](http://developer.waimai.meituan.com/home/doc/food/1)
+[美团对接指南](http://developer.waimai.meituan.com/home/guide/3)
+[餐饮美食](http://developer.waimai.meituan.com/home/doc/food/1)
+[商超便利](http://developer.waimai.meituan.com/home/doc/market/11)
+[医疗健康](http://developer.waimai.meituan.com/home/doc/medical/21)
+
+# 获取方式
+
+## Install
+go get github.com/T-Manson/meituan-sdk-go/meituan
+
+## Import
+``` golang
+import github.com/T-Manson/meituan-sdk-go/meituan
+```
+Finish.
+
+# demo
+see: example folder
