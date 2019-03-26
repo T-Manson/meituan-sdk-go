@@ -7,16 +7,16 @@ type Config struct {
 	consumerSecret string
 }
 
-func (self *Config) GetUrl() string {
-	return self.url
+func (cfg Config) GetUrl() string {
+	return cfg.url
 }
 
-func (self *Config) GetAppId() string {
-	return self.appId
+func (cfg Config) GetAppId() string {
+	return cfg.appId
 }
 
-func (self *Config) GetConsumerSecret() string {
-	return self.consumerSecret
+func (cfg Config) GetConsumerSecret() string {
+	return cfg.consumerSecret
 }
 
 // NewConfig 构造配置

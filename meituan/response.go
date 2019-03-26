@@ -23,13 +23,13 @@ type Response struct {
 	Error *Error `json:"error,omitempty"`
 }
 
-func (self *Response) Json() string {
-	jsonBytes, _ := json.Marshal(self)
+func (resp Response) Json() string {
+	jsonBytes, _ := json.Marshal(resp)
 	return string(jsonBytes)
 }
 
-func (self *Response) Parse(jsonBytes []byte) error {
-	return json.Unmarshal(jsonBytes, self)
+func (resp *Response) Parse(jsonBytes []byte) error {
+	return json.Unmarshal(jsonBytes, resp)
 }
 
 // MapResponse 字典响应
@@ -38,13 +38,13 @@ type MapResponse struct {
 	Error *Error                 `json:"error,omitempty"`
 }
 
-func (self *MapResponse) Json() string {
-	jsonBytes, _ := json.Marshal(self)
+func (resp MapResponse) Json() string {
+	jsonBytes, _ := json.Marshal(resp)
 	return string(jsonBytes)
 }
 
-func (self *MapResponse) Parse(jsonBytes []byte) error {
-	return json.Unmarshal(jsonBytes, self)
+func (resp *MapResponse) Parse(jsonBytes []byte) error {
+	return json.Unmarshal(jsonBytes, resp)
 }
 
 // ListMapResponse 字典集合响应
@@ -53,13 +53,13 @@ type ListMapResponse struct {
 	Error *Error                   `json:"error,omitempty"`
 }
 
-func (self *ListMapResponse) Json() string {
-	jsonBytes, _ := json.Marshal(self)
+func (resp ListMapResponse) Json() string {
+	jsonBytes, _ := json.Marshal(resp)
 	return string(jsonBytes)
 }
 
-func (self *ListMapResponse) Parse(jsonBytes []byte) error {
-	return json.Unmarshal(jsonBytes, self)
+func (resp *ListMapResponse) Parse(jsonBytes []byte) error {
+	return json.Unmarshal(jsonBytes, resp)
 }
 
 // Error 错误

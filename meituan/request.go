@@ -32,10 +32,10 @@ type Request struct {
 // type2: MapResponse instead of func CallMapRemote().
 //
 // type3: ListMapResponse  instead of func CallListMapRemote().
-func (self *Request) CallRemote(outResp BaseResponse) (err error) {
+func (req Request) CallRemote(outResp BaseResponse) (err error) {
 	var resp *http.Response
 
-	if resp, err = callApi(self); err != nil {
+	if resp, err = callApi(req); err != nil {
 		return
 	}
 
@@ -43,29 +43,45 @@ func (self *Request) CallRemote(outResp BaseResponse) (err error) {
 	return
 }
 
-func (self *Request) CallMapRemote() (resp *MapResponse, err error) {
+func (req Request) CallMapRemote() (resp *MapResponse, err error) {
 	resp = &MapResponse{}
-	err = self.CallRemote(resp)
+	err = req.CallRemote(resp)
 	return
 }
 
-func (self *Request) CallListMapRemote() (resp *ListMapResponse, err error) {
+func (req Request) CallListMapRemote() (resp *ListMapResponse, err error) {
 	resp = &ListMapResponse{}
-	err = self.CallRemote(resp)
+	err = req.CallRemote(resp)
 	return
 }
 
-func (self *Request) AddData(key string, value string) {
-	if self.Data == nil {
-		self.Data = make(map[string]string)
+func (req Request) CheckPushSign() bool {
+	if req.Sig == "" {
+		return false
 	}
-	self.Data[key] = value
+	sign, _, _ := makeSign(req.RequestUrl, req.AppId,
+		req.Timestamp, req.Data)
+	return req.Sig == sign
+}
+
+func (req Request) GetDataValue(key string) string {
+	if req.Data != nil {
+		return req.Data[key]
+	}
+	return ""
+}
+
+func (req *Request) AddData(key string, value string) {
+	if req.Data == nil {
+		req.Data = make(map[string]string)
+	}
+	req.Data[key] = value
 }
 
 // ParseRequestParams 解析美团推送的请求体
 //
 // if error != nil, has error
-func (self *Request) ParseRequestParams(reqBody string) error {
+func (req *Request) ParseRequestParams(reqBody string) error {
 	var (
 		timestamp, appId, sig string
 		ok                    bool
@@ -100,72 +116,56 @@ func (self *Request) ParseRequestParams(reqBody string) error {
 		for k, v := range applicationParamValues {
 			data[k] = v[0]
 		}
-		self.Data = data
+		req.Data = data
 	}
 
-	if timestamp, ok = self.Data["timestamp"]; !ok {
+	if timestamp, ok = req.Data["timestamp"]; !ok {
 		errMsg := "[Error]ParseRequestParams timestamp can not be empty"
 		fmt.Println(errMsg)
 		return fmt.Errorf(errMsg)
 	}
-	delete(self.Data, "timestamp")
+	delete(req.Data, "timestamp")
 
-	if appId, ok = self.Data["app_id"]; !ok {
+	if appId, ok = req.Data["app_id"]; !ok {
 		errMsg := "[Error]ParseRequestParams app_id can not be empty"
 		fmt.Println(errMsg)
 		return fmt.Errorf(errMsg)
 	}
-	delete(self.Data, "app_id")
+	delete(req.Data, "app_id")
 
-	if sig, ok = self.Data["sig"]; !ok {
+	if sig, ok = req.Data["sig"]; !ok {
 		errMsg := "[Error]ParseRequestParams sig can not be empty"
 		fmt.Println(errMsg)
 		return fmt.Errorf(errMsg)
 	}
-	delete(self.Data, "sig")
+	delete(req.Data, "sig")
 
-	if self.Timestamp, err = strconv.ParseInt(timestamp, 10, 64); err != nil {
+	if req.Timestamp, err = strconv.ParseInt(timestamp, 10, 64); err != nil {
 		fmt.Println("[Error]ParseRequestParams ParseInt ", err.Error())
 		return err
 	}
-	self.AppId = appId
-	self.Sig = sig
+	req.AppId = appId
+	req.Sig = sig
 
 	return nil
 }
 
-func (self *Request) CheckPushSign() bool {
-	if self.Sig == "" {
-		return false
-	}
-	sign, _, _ := makeSign(self.RequestUrl, self.AppId,
-		self.Timestamp, self.Data)
-	return self.Sig == sign
-}
-
-func (self *Request) GetDataValue(key string) string {
-	if self.Data != nil {
-		return self.Data[key]
-	}
-	return ""
-}
-
-func (self *Request) getFinalRequestUrl() (finalRequestUrl string, applicationParamStr string) {
-	self.Timestamp = MakeTimestamp()
-	self.AppId = commonConfig.appId
+func (req *Request) getFinalRequestUrl() (finalRequestUrl string, applicationParamStr string) {
+	req.Timestamp = MakeTimestamp()
+	req.AppId = commonConfig.appId
 
 	var signValuesStr string
-	self.Sig, signValuesStr, applicationParamStr = makeSign(self.RequestUrl, self.AppId,
-		self.Timestamp, self.Data)
+	req.Sig, signValuesStr, applicationParamStr = makeSign(req.RequestUrl, req.AppId,
+		req.Timestamp, req.Data)
 
 	var finalRequestUrlValuesStr string
-	switch self.HttpMethod {
+	switch req.HttpMethod {
 	case http.MethodPost:
-		finalRequestUrlValuesStr = fmt.Sprintf("%s?app_id=%s&timestamp=%v", self.RequestUrl, self.AppId, self.Timestamp)
+		finalRequestUrlValuesStr = fmt.Sprintf("%s?app_id=%s&timestamp=%v", req.RequestUrl, req.AppId, req.Timestamp)
 	default:
 		finalRequestUrlValuesStr = strings.Replace(signValuesStr, commonConfig.consumerSecret, "", -1)
 	}
-	finalRequestUrl = fmt.Sprintf("%s&sig=%s", finalRequestUrlValuesStr, self.Sig)
+	finalRequestUrl = fmt.Sprintf("%s&sig=%s", finalRequestUrlValuesStr, req.Sig)
 	return
 }
 
@@ -179,7 +179,7 @@ func NewRequest(httpMethod, requestUrl string) *Request {
 }
 
 // callApi 调用美团Api
-func callApi(self *Request) (*http.Response, error) {
+func callApi(req Request) (*http.Response, error) {
 	var (
 		response                             *http.Response
 		finalRequestUrl, applicationParamStr string
@@ -188,12 +188,12 @@ func callApi(self *Request) (*http.Response, error) {
 
 	client := http.Client{}
 
-	fmt.Println("[Info][]callApi requestUrl ", self.RequestUrl)
-	finalRequestUrl, applicationParamStr = self.getFinalRequestUrl()
+	fmt.Println("[Info][]callApi requestUrl ", req.RequestUrl)
+	finalRequestUrl, applicationParamStr = req.getFinalRequestUrl()
 	fmt.Println("[Info][]callApi finalRequestUrl ", finalRequestUrl)
 
 	// 美团Api请求方式仅有Post、Get两种模式
-	switch self.HttpMethod {
+	switch req.HttpMethod {
 	case http.MethodPost:
 		fmt.Println("[Info][]callApi POST data: ", applicationParamStr)
 		response, err = client.Post(finalRequestUrl, HTTP_POST_CONTENT_TYPE,
@@ -203,7 +203,7 @@ func callApi(self *Request) (*http.Response, error) {
 	}
 
 	if err != nil {
-		fmt.Println("[Error][]callApi ", self.RequestUrl, err.Error())
+		fmt.Println("[Error][]callApi ", req.RequestUrl, err.Error())
 		return nil, err
 	}
 
