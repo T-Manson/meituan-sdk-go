@@ -7,15 +7,15 @@ type Config struct {
 	consumerSecret string
 }
 
-func (cfg Config) GetUrl() string {
+func (cfg Config) Url() string {
 	return cfg.url
 }
 
-func (cfg Config) GetAppId() string {
+func (cfg Config) AppId() string {
 	return cfg.appId
 }
 
-func (cfg Config) GetConsumerSecret() string {
+func (cfg Config) ConsumerSecret() string {
 	return cfg.consumerSecret
 }
 
