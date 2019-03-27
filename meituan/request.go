@@ -229,8 +229,10 @@ func callApi(req Request) (*http.Response, error) {
 // timestamp: request timestamp
 //
 // secret:  secret
-func makeSign(requestUrl, appId string, timestamp int64,
-	requestData map[string]string) (sign string, signValuesStr string, applicationParamStr string) {
+func makeSign(requestUrl, appId string,
+	timestamp int64,
+	requestData map[string]string,
+) (sign string, signValuesStr string, applicationParamStr string) {
 	if requestUrl == "" || appId == "" || timestamp == 0 {
 		return "", "", ""
 	}
@@ -246,8 +248,10 @@ func makeSign(requestUrl, appId string, timestamp int64,
 }
 
 // getSignValuesStr 返回：签名使用的字符串、应用参数form格式字符串
-func getSignValuesStr(requestUrl, appId string, timestamp int64,
-	requestData map[string]string) (signValuesStr string, applicationParamStr string) {
+func getSignValuesStr(requestUrl, appId string,
+	timestamp int64,
+	requestData map[string]string,
+) (signValuesStr string, applicationParamStr string) {
 	values := getHttpUrlValues(requestData)
 	applicationParamStr = values.Encode()
 
