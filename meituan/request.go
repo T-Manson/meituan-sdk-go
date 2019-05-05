@@ -201,6 +201,18 @@ func (req *Request) makeSign() (sign string, signValuesStr string, applicationPa
 	return
 }
 
+// parseDataToHttpUrlValues 获取url query格式数据
+func (req *Request) parseDataToHttpUrlValues() (values url.Values) {
+	var strBuilder strings.Builder
+	for k, v := range req.Data {
+		strBuilder.WriteString(fmt.Sprintf("%s=%v&", k, v))
+	}
+	if strBuilder.Len() > 0 {
+		values, _ = url.ParseQuery(strBuilder.String())
+	}
+	return
+}
+
 // NewRequest 构建请求
 func NewRequest(httpMethod, requestUrl string) *Request {
 	return &Request{
@@ -244,24 +256,12 @@ func callApi(req Request) (*http.Response, error) {
 
 // getSignValuesStr 返回：签名使用的字符串、应用参数form格式字符串
 func getSignValuesStr(req *Request) (signValuesStr string, applicationParamStr string) {
-	values := getHttpUrlValues(req.Data)
+	values := req.parseDataToHttpUrlValues()
 	applicationParamStr = values.Encode()
 
 	values.Add("timestamp", strconv.FormatInt(req.Timestamp, 10))
 	values.Add("app_id", req.AppId)
 	valuesStr, _ := url.QueryUnescape(values.Encode())
 	signValuesStr = fmt.Sprintf("%s?%s%s", req.RequestUrl, valuesStr, commonConfig.consumerSecret)
-	return
-}
-
-// getHttpUrlValues 获取url query格式数据
-func getHttpUrlValues(dataMap map[string]string) (values url.Values) {
-	var strBuilder strings.Builder
-	for k, v := range dataMap {
-		strBuilder.WriteString(fmt.Sprintf("%s=%v&", k, v))
-	}
-	if strBuilder.Len() > 0 {
-		values, _ = url.ParseQuery(strBuilder.String())
-	}
 	return
 }
