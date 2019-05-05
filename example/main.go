@@ -28,7 +28,7 @@ func main() {
 	// see: http://developer.waimai.meituan.com/home/docDetail/9
 	poiMget := "poi/mget"
 
-	poiMgetRequest := meituan.NewRequest(http.MethodGet, meituan.GetRequestUrl(poiMget))
+	poiMgetRequest := meituan.NewRequest(http.MethodGet, meituan.GetRequestUrl(poiMget), 1)
 	poiMgetRequest.AddData("app_poi_codes", appPoiCode)
 
 	// 获取结果的2种方式
@@ -51,7 +51,7 @@ func main() {
 	// see: http://developer.waimai.meituan.com/home/docDetail/21
 	poiOnline := "poi/online"
 
-	poiOnlineRequest := meituan.NewRequest(http.MethodGet, meituan.GetRequestUrl(poiOnline))
+	poiOnlineRequest := meituan.NewRequest(http.MethodGet, meituan.GetRequestUrl(poiOnline), 1)
 	poiOnlineRequest.AddData("app_poi_code", appPoiCode)
 
 	poiOnlineResponse := &meituan.Response{}
@@ -78,7 +78,7 @@ func main() {
 	body := values.Encode()
 
 	// 1. 将美团请求解析为struct
-	meiTuanRequest := meituan.NewRequest(httpMethod, requestUrl)
+	meiTuanRequest := meituan.NewRequest(httpMethod, requestUrl, 0)
 
 	// 2. 解析美团请求体
 	if err := meiTuanRequest.ParseRequestParams(body); err != nil {

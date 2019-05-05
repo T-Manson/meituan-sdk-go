@@ -214,11 +214,11 @@ func (req *Request) parseDataToHttpUrlValues() (values url.Values) {
 }
 
 // NewRequest 构建请求
-func NewRequest(httpMethod, requestUrl string) *Request {
+func NewRequest(httpMethod, requestUrl string, paramSize int) *Request {
 	return &Request{
 		HttpMethod: httpMethod,
 		RequestUrl: requestUrl,
-		Data:       make(map[string]string),
+		Data:       make(map[string]string, paramSize),
 	}
 }
 
