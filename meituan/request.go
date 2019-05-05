@@ -59,8 +59,7 @@ func (req Request) CheckPushSign() bool {
 	if req.Sig == "" {
 		return false
 	}
-	sign, _, _ := makeSign(req.RequestUrl, req.AppId,
-		req.Timestamp, req.Data)
+	sign, _, _ := req.makeSign()
 	return req.Sig == sign
 }
 
@@ -155,8 +154,7 @@ func (req *Request) getFinalRequestUrl() (finalRequestUrl string, applicationPar
 	req.AppId = commonConfig.appId
 
 	var signValuesStr string
-	req.Sig, signValuesStr, applicationParamStr = makeSign(req.RequestUrl, req.AppId,
-		req.Timestamp, req.Data)
+	req.Sig, signValuesStr, applicationParamStr = req.makeSign()
 
 	var finalRequestUrlValuesStr string
 	switch req.HttpMethod {
@@ -166,6 +164,40 @@ func (req *Request) getFinalRequestUrl() (finalRequestUrl string, applicationPar
 		finalRequestUrlValuesStr = strings.Replace(signValuesStr, commonConfig.consumerSecret, "", -1)
 	}
 	finalRequestUrl = fmt.Sprintf("%s&sig=%s", finalRequestUrlValuesStr, req.Sig)
+	return
+}
+
+// makeSign 获取美团格式签名，返回：签名、签名使用的字符串、应用参数form格式字符串
+//
+// Sign Rule Exemple: ${proto}://${host}/${route}?app_id=${appId}&${applicationParams}&timestamp=${timestamp}${secret}
+//
+// proto: http/https
+//
+// host: domain
+//
+// route: internal operator
+//
+// url query: all key name must be asc sort
+//
+// appId:  appId
+//
+// applicationParams: request data
+//
+// timestamp: request timestamp
+//
+// secret:  secret
+func (req *Request) makeSign() (sign string, signValuesStr string, applicationParamStr string) {
+	if req.RequestUrl == "" || req.AppId == "" || req.Timestamp == 0 {
+		return "", "", ""
+	}
+
+	signValuesStr, applicationParamStr = getSignValuesStr(req)
+	fmt.Println("[Info][]makeSign sigValuesStr is: ", signValuesStr)
+	md5Tool := md5.New()
+	md5Tool.Write([]byte(signValuesStr))
+	md5Bytes := md5Tool.Sum(nil)
+	sign = hex.EncodeToString(md5Bytes)
+	fmt.Println("[Info][]makeSign sign is: ", sign)
 	return
 }
 
@@ -210,55 +242,15 @@ func callApi(req Request) (*http.Response, error) {
 	return response, nil
 }
 
-// makeSign 获取美团格式签名，返回：签名、签名使用的字符串、应用参数form格式字符串
-//
-// Sign Rule Exemple: ${proto}://${host}/${route}?app_id=${appId}&${applicationParams}&timestamp=${timestamp}${secret}
-//
-// proto: http/https
-//
-// host: domain
-//
-// route: internal operator
-//
-// url query: all key name must be asc sort
-//
-// appId:  appId
-//
-// applicationParams: request data
-//
-// timestamp: request timestamp
-//
-// secret:  secret
-func makeSign(requestUrl, appId string,
-	timestamp int64,
-	requestData map[string]string,
-) (sign string, signValuesStr string, applicationParamStr string) {
-	if requestUrl == "" || appId == "" || timestamp == 0 {
-		return "", "", ""
-	}
-
-	signValuesStr, applicationParamStr = getSignValuesStr(requestUrl, appId, timestamp, requestData)
-	fmt.Println("[Info][]makeSign sigValuesStr is: ", signValuesStr)
-	md5Tool := md5.New()
-	md5Tool.Write([]byte(signValuesStr))
-	md5Bytes := md5Tool.Sum(nil)
-	sign = hex.EncodeToString(md5Bytes)
-	fmt.Println("[Info][]makeSign sign is: ", sign)
-	return
-}
-
 // getSignValuesStr 返回：签名使用的字符串、应用参数form格式字符串
-func getSignValuesStr(requestUrl, appId string,
-	timestamp int64,
-	requestData map[string]string,
-) (signValuesStr string, applicationParamStr string) {
-	values := getHttpUrlValues(requestData)
+func getSignValuesStr(req *Request) (signValuesStr string, applicationParamStr string) {
+	values := getHttpUrlValues(req.Data)
 	applicationParamStr = values.Encode()
 
-	values.Add("timestamp", strconv.FormatInt(timestamp, 10))
-	values.Add("app_id", appId)
+	values.Add("timestamp", strconv.FormatInt(req.Timestamp, 10))
+	values.Add("app_id", req.AppId)
 	valuesStr, _ := url.QueryUnescape(values.Encode())
-	signValuesStr = fmt.Sprintf("%s?%s%s", requestUrl, valuesStr, commonConfig.consumerSecret)
+	signValuesStr = fmt.Sprintf("%s?%s%s", req.RequestUrl, valuesStr, commonConfig.consumerSecret)
 	return
 }
 
