@@ -88,29 +88,14 @@ func (req *Request) ParseRequestParams(reqBody string) error {
 	)
 
 	if reqBody != "" {
-		var values url.Values
-		if values, err = url.ParseQuery(reqBody); err != nil {
-			fmt.Println("[Error]ParseRequestParams ParseQuery ", err.Error())
-			return err
-		}
-
 		// Why decode twice? see: http://developer.waimai.meituan.com/home/guide/6
-		// 第一次解码
-		var unescapeValuesStr1 string
-		if unescapeValuesStr1, err = url.QueryUnescape(values.Encode()); err != nil {
+		var unescapeValuesStr string
+		if unescapeValuesStr, err = url.QueryUnescape(reqBody); err != nil {
 			fmt.Println("[Error]ParseRequestParams QueryUnescape1 ", err.Error())
 			return err
 		}
 
-		// 第二次解码
-		var unescapeValuesStr2 string
-		if unescapeValuesStr2, err = url.QueryUnescape(unescapeValuesStr1); err != nil {
-			fmt.Println("[Error]ParseRequestParams QueryUnescape2 ", err.Error())
-			return err
-		}
-
-		applicationParamValues, _ := url.ParseQuery(unescapeValuesStr2)
-
+		applicationParamValues, _ := url.ParseQuery(unescapeValuesStr)
 		data := make(map[string]string, len(applicationParamValues))
 		for k, v := range applicationParamValues {
 			data[k] = v[0]
@@ -205,8 +190,9 @@ func (req *Request) makeSign() (sign string, signValuesStr string, applicationPa
 func (req *Request) parseDataToHttpUrlValues() (values url.Values) {
 	var strBuilder strings.Builder
 	for k, v := range req.Data {
-		strBuilder.WriteString(fmt.Sprintf("%s=%v&", k, v))
+		strBuilder.WriteString(fmt.Sprintf("%s=%s&", k, url.QueryEscape(v)))
 	}
+
 	if strBuilder.Len() > 0 {
 		values, _ = url.ParseQuery(strBuilder.String())
 	}
