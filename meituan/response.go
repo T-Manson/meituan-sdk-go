@@ -95,6 +95,7 @@ func ParseResponse(resp *http.Response, outResp BaseResponse) error {
 		if resp.StatusCode == http.StatusOK {
 			if result, err = checkResponseBody(resp.Body); err != nil {
 				fmt.Println("[Error][]GetResponse checkResponseBody ", err.Error())
+				_ = outResp.Parse(result)
 				return err
 			} else {
 				fmt.Println("[Info][]GetResponse Response ", string(result))
