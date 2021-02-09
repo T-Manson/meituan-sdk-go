@@ -123,7 +123,6 @@ func checkResponseBody(body io.ReadCloser) (result []byte, err error) {
 		if err = meiTuanResponse.Parse(result); err == nil {
 			// 美团响应data为ng时，为处理失败
 			if strings.ToLower(meiTuanResponse.Data) == "ng" {
-				result = nil
 				err = fmt.Errorf("[Error][]checkResponseBody response.data equels ng. error:%+v", meiTuanResponse.Error)
 				return
 			}
