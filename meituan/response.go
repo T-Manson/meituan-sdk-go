@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 // BaseResponse 基础响应
@@ -94,20 +96,20 @@ func ParseResponse(resp *http.Response, outResp BaseResponse) error {
 
 		if resp.StatusCode == http.StatusOK {
 			if result, err = checkResponseBody(resp.Body); err != nil {
-				fmt.Println("[Error][]GetResponse checkResponseBody ", err.Error())
+				logrus.Errorln("GetResponse checkResponseBody ", err.Error())
 				_ = outResp.Parse(result)
 				return err
 			} else {
-				fmt.Println("[Info][]GetResponse Response ", string(result))
+				logrus.Infoln("GetResponse Response ", string(result))
 				return outResp.Parse(result)
 			}
 		} else {
 			result, _ := ioutil.ReadAll(resp.Body)
-			return fmt.Errorf("[Error][]GetResponse code: %v body: %s", resp.StatusCode, string(result))
+			return fmt.Errorf("GetResponse code: %v body: %s", resp.StatusCode, string(result))
 		}
 	}
 
-	fmt.Println("[Info][]GetResponse Response is empty")
+	logrus.Infoln("GetResponse Response is empty")
 	return nil
 }
 
@@ -123,7 +125,7 @@ func checkResponseBody(body io.ReadCloser) (result []byte, err error) {
 		if err = meiTuanResponse.Parse(result); err == nil {
 			// 美团响应data为ng时，为处理失败
 			if strings.ToLower(meiTuanResponse.Data) == "ng" {
-				err = fmt.Errorf("[Error][]checkResponseBody response.data equels ng. error:%+v", meiTuanResponse.Error)
+				err = fmt.Errorf("checkResponseBody response.data equels ng. error:%+v", meiTuanResponse.Error)
 				return
 			}
 		}

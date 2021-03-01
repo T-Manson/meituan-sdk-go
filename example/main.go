@@ -4,11 +4,11 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 
 	"github.com/T-Manson/meituan-sdk-go/meituan"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -35,16 +35,16 @@ func main() {
 	// 通过out参数返回
 	poiMgetResponse := &meituan.ListMapResponse{}
 	if err := poiMgetRequest.CallRemote(poiMgetResponse); err != nil {
-		fmt.Println("[Error][MeiTuan]CallRemote ", poiMget, err.Error())
+		logrus.Errorln("[MeiTuan]CallRemote ", poiMget, err.Error())
 	} else {
-		fmt.Println(poiMgetResponse.Json())
+		logrus.Debugln(poiMgetResponse.Json())
 	}
 
 	// 通过return结果返回
 	if reps, err := poiMgetRequest.CallListMapRemote(); err != nil {
-		fmt.Println("[Error][MeiTuan]CallRemote ", poiMget, err.Error())
+		logrus.Errorln("[MeiTuan]CallRemote ", poiMget, err.Error())
 	} else {
-		fmt.Println(reps.Json())
+		logrus.Debugln(reps.Json())
 	}
 
 	// POST poi/online 门店设置为上线状态
@@ -56,9 +56,9 @@ func main() {
 
 	poiOnlineResponse := &meituan.Response{}
 	if err := poiOnlineRequest.CallRemote(poiOnlineResponse); err != nil {
-		fmt.Println("[Error][MeiTuan]CallRemote ", poiOnline, err.Error())
+		logrus.Errorln("[MeiTuan]CallRemote ", poiOnline, err.Error())
 	} else {
-		fmt.Println(poiOnlineResponse.Json())
+		logrus.Debugln(poiOnlineResponse.Json())
 	}
 
 	// 模拟一个美团请求过程
@@ -82,16 +82,16 @@ func main() {
 
 	// 2. 解析美团请求体
 	if err := meiTuanRequest.ParseRequestParams(body); err != nil {
-		fmt.Println("[Error][MeiTuan]ParseRequestParams ", err.Error())
+		logrus.Errorln("[MeiTuan]ParseRequestParams ", err.Error())
 	}
 
 	// 3. 验签
 	checkResult := meiTuanRequest.CheckPushSign()
-	fmt.Println("[Info][MeiTuan]CheckPushSign result: ", checkResult)
+	logrus.Infoln("[MeiTuan]CheckPushSign result: ", checkResult)
 
 	// 4. Do something after CheckPushSign Success
 	if checkResult {
 		jsonBytes, _ := json.Marshal(meiTuanRequest)
-		fmt.Println("[Info][MeiTuan]Request info: ", string(jsonBytes))
+		logrus.Infoln("[MeiTuan]Request info: ", string(jsonBytes))
 	}
 }
