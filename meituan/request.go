@@ -61,7 +61,7 @@ func (req Request) CheckPushSign() bool {
 	if req.Sig == "" {
 		return false
 	}
-	sign, _ := req.makeSign()
+	sign, _, _ := req.makeSign()
 	return req.Sig == sign
 }
 
@@ -140,14 +140,15 @@ func (req *Request) getFinalRequestUrl() (finalRequestUrl, applicationParamStr s
 	req.Timestamp = MakeTimestamp()
 	req.AppId = commonConfig.appId
 
-	req.Sig, applicationParamStr = req.makeSign()
+	var getUrl string
+	req.Sig, getUrl, applicationParamStr = req.makeSign()
 
 	var finalRequestUrlValuesStr string
 	switch req.HttpMethod {
 	case http.MethodPost:
 		finalRequestUrlValuesStr = fmt.Sprintf("%s?app_id=%s&timestamp=%v", req.RequestUrl, req.AppId, req.Timestamp)
 	default:
-		finalRequestUrlValuesStr = applicationParamStr
+		finalRequestUrlValuesStr = getUrl
 	}
 	finalRequestUrl = fmt.Sprintf("%s&sig=%s", finalRequestUrlValuesStr, req.Sig)
 	return
@@ -172,13 +173,13 @@ func (req *Request) getFinalRequestUrl() (finalRequestUrl, applicationParamStr s
 // timestamp: request timestamp
 //
 // secret:  secret
-func (req *Request) makeSign() (sign, getUrl string) {
+func (req *Request) makeSign() (sign, getUrl, applicationParamStr string) {
 	if req.RequestUrl == "" || req.AppId == "" || req.Timestamp == 0 {
-		return "", ""
+		return "", "", ""
 	}
 
 	var signValuesStr string
-	signValuesStr, getUrl = getSignValuesStr(req)
+	signValuesStr, getUrl, applicationParamStr = getSignValuesStr(req)
 	logrus.Infoln("makeSign sigValuesStr is: ", signValuesStr)
 	md5Tool := md5.New()
 	md5Tool.Write([]byte(signValuesStr))
@@ -243,11 +244,11 @@ func callApi(req Request) (*http.Response, error) {
 }
 
 // getSignValuesStr 返回：签名使用的字符串、应用参数form格式字符串
-func getSignValuesStr(req *Request) (signValuesStr, getUrl string) {
+func getSignValuesStr(req *Request) (signValuesStr, getUrl, applicationParamStr string) {
 	values := req.parseDataToHttpUrlValues()
 	values.Add("timestamp", strconv.FormatInt(req.Timestamp, 10))
 	values.Add("app_id", req.AppId)
-	applicationParamStr := values.Encode()
+	applicationParamStr = values.Encode()
 
 	getUrl = fmt.Sprintf("%s?%s", req.RequestUrl, applicationParamStr)
 
