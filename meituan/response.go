@@ -2,6 +2,7 @@ package meituan
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -125,8 +126,12 @@ func checkResponseBody(body io.ReadCloser) (result []byte, err error) {
 		if err = meiTuanResponse.Parse(result); err == nil {
 			// 美团响应data为ng时，为处理失败
 			if strings.ToLower(meiTuanResponse.Data) == "ng" {
-				err = fmt.Errorf("checkResponseBody response.data equels ng. error:%+v", meiTuanResponse.Error)
-				return
+				if meiTuanResponse.Error != nil {
+					b, _ := json.Marshal(meiTuanResponse.Error)
+					err = fmt.Errorf(string(b))
+				} else {
+					err = errors.New(meiTuanResponse.Data)
+				}
 			}
 		}
 	}
